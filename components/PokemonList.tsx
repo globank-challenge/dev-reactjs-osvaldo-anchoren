@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type FC } from 'react';
+import React, { useEffect, useRef, useState, type FC } from 'react';
 import { View, Text } from 'react-native';
 import { Snackbar, Button } from 'react-native-paper';
 import { pokeApi } from '../api';
@@ -7,16 +7,23 @@ import { Pokedex, PokemonListType } from '../interfaces';
 import { Loading } from './Loading';
 import { Pokemon } from './Pokemon';
 
+const limitPokemons = 151 // there is no more pokemons to me... also the app crash if you try to load too much :P
+
 export const PokemonList:FC  = ({}) => {
     const [pokemons, setPokemons] = useState<PokemonListType[]>([])
     const [snackbarVisible, setSnackbarVisible] = useState(false)
     const [loading, setLoading] = useState(true)
 
-    const [limit, setLimit] = useState(20);
+    const limit = useRef(20);
     const [offset, setOffset] = useState(0);
 
     useEffect(() => {
-        pokeApi.get<Pokedex>(`/pokemon?limit=${limit}&offset=${offset}`).then( ({data}) => {
+        if (offset + limit.current >= limitPokemons) {
+            limit.current = limit.current - (offset + limit.current - limitPokemons); 
+            console.log(limit.current);
+        }
+
+        pokeApi.get<Pokedex>(`/pokemon?limit=${limit.current}&offset=${offset}`).then( ({data}) => {
         const newPokemons: PokemonListType[] = data.results.map((p, index) => {return {
             name: p.name,
             desc: `Es el pokemon número ${pokemons.length + index + 1}, y se llama ${p.name}`,
@@ -24,7 +31,6 @@ export const PokemonList:FC  = ({}) => {
         }})
         setPokemons([...pokemons , ...newPokemons]);
         setLoading(false);
-        console.log(pokemons);
       }).catch(err => {
         console.log(JSON.stringify(err));
         setSnackbarVisible(true);
@@ -32,7 +38,12 @@ export const PokemonList:FC  = ({}) => {
     }, [offset])
 
     const handleMore = ()  => {
-        setOffset(offset + limit);
+        if(offset + limit.current >= limitPokemons){
+            console.log("limit reached");
+            return;
+        }
+
+        setOffset(offset + limit.current);
         setLoading(true);
     }
     
